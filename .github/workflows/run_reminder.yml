@@ -4,7 +4,6 @@ on:
   # ruleaza zilnic la 05:00 UTC (~08:00 Romania vara)
   schedule:
      - cron: "0 5 * * *"  # 08:00 vara în RO
-     - cron: "0 6 * * *"  # 08:00 iarna în RO
   workflow_dispatch: {}
 
 jobs:
