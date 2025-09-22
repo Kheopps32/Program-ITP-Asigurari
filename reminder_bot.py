@@ -131,6 +131,37 @@ def main():
     today = date.today()
     df = load_fleet_df()
 
+    # >>> PROBE LOG pentru BZ-999-ATR (FERRARI) – ce citim din CSV-ul publicat
+    try:
+        logger.info("Rows in DF: %s, columns: %s", df.shape[0], list(df.columns))
+        # Asigură-te că există coloana nr_masina
+        if "nr_masina" in df.columns:
+            probe_mask = df["nr_masina"].astype(str).str.strip().str.upper().eq("BZ-999-ATR")
+            probe = df.loc[probe_mask].copy()
+            if probe.empty:
+                logger.warning("BZ-999-ATR NU e in CSV-ul citit din GSHEET_CSV_URL.")
+            else:
+                # funcție locală pentru parse dată
+                def _p(v):
+                    try:
+                        return dateparser.parse(str(v), dayfirst=True).date()
+                    except Exception:
+                        return None
+                rv = _p(probe.iloc[0].get("rovinieta_expira"))
+                it = _p(probe.iloc[0].get("itp_expira"))
+                asig = _p(probe.iloc[0].get("asigurare_expira"))
+                logger.info(
+                    "Ferrari dates din CSV: rovinieta=%s (dl=%s), itp=%s (dl=%s), asigurare=%s (dl=%s)",
+                    rv, (rv - today).days if rv else None,
+                    it, (it - today).days if it else None,
+                    asig, (asig - today).days if asig else None
+                )
+        else:
+            logger.warning("Coloana 'nr_masina' lipseste in DF la momentul probei.")
+    except Exception as e:
+        logger.exception("Eroare la logul de proba pentru BZ-999-ATR: %s", e)
+    # <<< PROBE LOG
+
     required_cols = {"nr_masina","rovinieta_expira","itp_expira","asigurare_expira"}
     optional_cols = {"marca"}
 
