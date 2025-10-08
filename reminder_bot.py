@@ -137,6 +137,9 @@ def load_fleet_df() -> pd.DataFrame:
         df = df.dropna(how="all")
     return df
 
+def plural_zi_zile(n: int) -> str:
+    return "zi" if abs(n) == 1 else "zile"
+
 # ------------------- Core -------------------
 def main():
     ensure_env()
@@ -179,29 +182,48 @@ def main():
         for tip, d in dates.items():
             if not d:
                 continue
+
             days_left = (d - today).days
-            if days_left in TRIGGERS:
+
+            # Trimite la pragurile clasice SAU zilnic dacă e depășit (days_left < 0)
+            if (days_left in TRIGGERS) or (days_left < 0):
                 key = (nr, tip, d.strftime(DATE_FORMAT_OUTPUT), str(days_left))
 
-                # gard in-rulare
+                # gard anti-dubluri în aceeași rulare
                 if key in seen_keys_run:
                     logger.info("Skip (duplicat in aceeasi rulare): %s", key)
                     continue
                 seen_keys_run.add(key)
 
-                # gard din log local (optional; îl ai deja)
+                # gard din log local: evită retrimiterea aceleiași combinații azi
                 if key in already_sent:
-                    logger.info("Skip (deja trimis anterior in aceeasi zi): %s", key)
+                    logger.info("Skip (deja trimis anterior pentru %s)", key)
                     continue
 
-                subject = f"Expira {tip.lower()} la {prefix_marca}{nr} in {days_left} zile"
-                body = (
-                    f"Avertizare expirare: {tip}\n"
-                    f"Masina: {prefix_marca}{nr}\n"
-                    f"Data expirarii: {d.strftime(DATE_FORMAT_OUTPUT)}\n"
-                    f"Au ramas: {days_left} zile\n\n"
-                    f"Acest mesaj a fost generat automat."
-                )
+                if days_left < 0:
+                    # EXPIRAT — trimite zilnic (-1, -2, -3, ...)
+                    overdue_days = -days_left
+                    subject = (
+                        f"{tip.capitalize()} la {prefix_marca}{nr} este EXPIRAT\u0102 de "
+                        f"{overdue_days} {plural_zi_zile(overdue_days)}"
+                    )
+                    body = (
+                        f"AVERTIZARE: {tip} EXPIRAT\u0102\n"
+                        f"Ma\u0219ina: {prefix_marca}{nr}\n"
+                        f"Data expir\u0103rii: {d.strftime(DATE_FORMAT_OUTPUT)}\n"
+                        f"Dep\u0103\u0219ire: {overdue_days} {plural_zi_zile(overdue_days)}\n\n"
+                        f"Te rug\u0103m s\u0103 actualizezi documentul c\u00E2t mai rapid."
+                    )
+                else:
+                    # cazul clasic pe praguri (30/15/7/4/1)
+                    subject = f"Expira {tip.lower()} la {prefix_marca}{nr} in {days_left} {plural_zi_zile(days_left)}"
+                    body = (
+                        f"Avertizare expirare: {tip}\n"
+                        f"Masina: {prefix_marca}{nr}\n"
+                        f"Data expirarii: {d.strftime(DATE_FORMAT_OUTPUT)}\n"
+                        f"Au ramas: {days_left} {plural_zi_zile(days_left)}\n\n"
+                        f"Acest mesaj a fost generat automat."
+                    )
 
                 try:
                     send_mail(subject, body)
