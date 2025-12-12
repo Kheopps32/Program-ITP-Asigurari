@@ -101,3 +101,22 @@ def main():
 
 if __name__ == "__main__":
     main()
+def _clean_header(s: str) -> str:
+    return " ".join((s or "").replace("\r", " ").replace("\n", " ").split())
+
+def send_mail(subject: str, body: str):
+    from_addr = _clean_header(os.getenv("SENDER_EMAIL", ""))
+    to_addr   = _clean_header(os.getenv("DEST_EMAIL", from_addr))
+
+    msg = EmailMessage()
+    msg["From"] = from_addr
+    msg["To"] = to_addr
+    msg["Subject"] = _clean_header(subject)
+    msg.set_content(body)
+
+    host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    port = int(os.getenv("SMTP_PORT", "587"))
+    with smtplib.SMTP(host, port) as s:
+        s.starttls()
+        s.login(from_addr, os.getenv("APP_PASSWORD", ""))
+        s.send_message(msg)
