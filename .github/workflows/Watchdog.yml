@@ -1,9 +1,9 @@
 name: Watchdog for reminder bot
 
 on:
-  # rulează din oră în oră (poți restrânge intervalul mai târziu)
+  # Ruleaza zilnic vara si iarna pe langa 08:40 RO
   schedule:
-    - cron: "5 * * * *"
+    - cron: "40 6 * * *"   # ~08:40 iarna in Romania (EET)
   workflow_dispatch: {}
 
 jobs:
@@ -25,21 +25,21 @@ jobs:
         env:
           # token corect pentru API GitHub
           GITHUB_TOKEN: ${{ github.token }}
-          # numele FIȘIERULUI workflow-ului principal exact cum apare în .github/workflows/
-          WATCH_WORKFLOW_FILE: "run_reminder.yml"
+          # numele FIȘIERULUI workflow-ului principal exact cum apare in .github/workflows/
+          WATCH_WORKFLOW_FILE: "run_reminder.yml"   # <-- pune exact numele tau
 
-          # fereastra ta locală
+          # fereastra locala
           TARGET_LOCAL_TZ: "Europe/Bucharest"
-          TARGET_LOCAL_HOUR: "8"
-          WATCH_GRACE_MIN: "90"
+          TARGET_LOCAL_HOUR: "8"   # reminder-ul e asteptat la 08:00 RO
+          WATCH_GRACE_MIN: "30"    # +30 min gratie peste ora asteptata
 
-          # e-mail (folosește aceleași secrete ca botul principal)
+          # e-mail (reuseaza secretele botului)
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
           APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
           DEST_EMAIL:   ${{ secrets.DEST_EMAIL }}
           SMTP_HOST:    ${{ secrets.SMTP_HOST }}
           SMTP_PORT:    ${{ secrets.SMTP_PORT }}
 
-          # TEST instant (setează la "1" ca să trimită mail imediat)
-          WATCH_FORCE_ALERT: "0"
+          # TEST instant (seteaza temporar la "1" ca sa primesti mesaj imediat)
+          WATCH_FORCE_ALERT: "1"
         run: python watchdog.py
