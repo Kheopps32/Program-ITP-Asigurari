@@ -29,7 +29,7 @@ jobs:
 
           TARGET_LOCAL_TZ: "Europe/Bucharest"
           TARGET_LOCAL_HOUR: "8"
-          WATCH_GRACE_MIN: "30"
+          WATCH_GRACE_MIN: "0"
 
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
           APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
@@ -38,5 +38,5 @@ jobs:
           SMTP_PORT:    ${{ secrets.SMTP_PORT }}
 
           # TEST: pune "1" ca sa primesti mail imediat
-          WATCH_FORCE_ALERT: "1"
+          WATCH_FORCE_ALERT: "0"
         run: python watchdog.py
