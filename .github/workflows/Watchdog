@@ -1,0 +1,38 @@
+name: Watchdog for reminder bot
+
+on:
+  schedule:
+    - cron: "5 * * * *"   # din oră în oră, la minutul 5
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install requests
+
+      - name: Run watchdog
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # e setat automat de Actions; lăsăm pentru claritate
+          # <<< setează corect numele fișierului workflow PRINCIPAL pe care îl verifici:
+          WATCH_WORKFLOW_FILE: "blank.yml"           # pune aici "run-reminder.yml" dacă așa se numește la tine
+          TARGET_LOCAL_TZ: "Europe/Bucharest"
+          TARGET_LOCAL_HOUR: "8"     # ora la care te aștepți să ruleze botul
+          WATCH_GRACE_MIN: "90"      # grație după ora așteptată (în minute)
+
+          # email (reusezi secretele deja existente)
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          DEST_EMAIL:   ${{ secrets.DEST_EMAIL }}
+          SMTP_HOST:    ${{ secrets.SMTP_HOST }}
+          SMTP_PORT:    ${{ secrets.SMTP_PORT }}
+        run: python watchdog.py
