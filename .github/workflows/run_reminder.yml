@@ -49,3 +49,42 @@ jobs:
             app.log
             sent_log.csv
           if-no-files-found: ignore
+
+      - name: Send failure email
+        if: failure()
+        env:
+          SENDER_EMAIL:    ${{ secrets.SENDER_EMAIL }}
+          APP_PASSWORD:    ${{ secrets.APP_PASSWORD }}
+          DEST_EMAIL:      ${{ secrets.DEST_EMAIL }}
+          SMTP_HOST:       ${{ secrets.SMTP_HOST }}
+          SMTP_PORT:       ${{ secrets.SMTP_PORT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID:     ${{ github.run_id }}
+          GITHUB_WORKFLOW:   ${{ github.workflow }}
+          GITHUB_SHA:        ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import os, smtplib
+          from email.message import EmailMessage
+
+          subject = "Reminder bot: RUN FAILED"
+          body = f"""Workflow: {os.getenv('GITHUB_WORKFLOW')}
+Repo: {os.getenv('GITHUB_REPOSITORY')}
+Run URL: https://github.com/{os.getenv('GITHUB_REPOSITORY')}/actions/runs/{os.getenv('GITHUB_RUN_ID')}
+Commit: {os.getenv('GITHUB_SHA')}
+"""
+
+          msg = EmailMessage()
+          msg["From"] = os.environ["SENDER_EMAIL"]
+          msg["To"] = os.environ.get("DEST_EMAIL", os.environ["SENDER_EMAIL"])
+          msg["Subject"] = subject
+          msg.set_content(body)
+
+          host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+          port = int(os.getenv("SMTP_PORT", "587"))
+          with smtplib.SMTP(host, port) as s:
+            s.starttls()
+            s.login(os.environ["SENDER_EMAIL"], os.environ["APP_PASSWORD"])
+            s.send_message(msg)
+          PY
+
