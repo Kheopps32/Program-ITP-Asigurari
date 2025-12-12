@@ -22,7 +22,7 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      # --- OPTIONAL: prevenim dublurile in aceeasi zi daca rulezi manual de mai multe ori
+      # OPTIONAL: prevenim dublurile in aceeasi zi la rulari manuale
       - name: Set today (UTC)
         id: today
         run: echo "value=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
@@ -43,15 +43,13 @@ jobs:
           SENDER_EMAIL:  ${{ secrets.SENDER_EMAIL }}
           APP_PASSWORD:  ${{ secrets.APP_PASSWORD }}
           DEST_EMAIL:    ${{ secrets.DEST_EMAIL }}
-          # --- varianta fara lag (export Google Sheets)
           GSHEET_EXPORT_FILE_ID: ${{ secrets.GSHEET_EXPORT_FILE_ID }}
           GSHEET_EXPORT_GID:     ${{ secrets.GSHEET_EXPORT_GID }}
-          # --- SMTP (daca folosesti Office 365 le ai deja in secrete)
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
         run: python reminder_bot.py
 
-      # --- EMAIL IMEDIAT LA ESEC ---
+      # EMAIL imediat daca pasul de mai sus esueaza
       - name: Send failure email
         if: failure()
         env:
