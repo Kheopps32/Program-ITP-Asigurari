@@ -1,7 +1,7 @@
 name: Run reminder bot
 
 on:
-  # Rulează zilnic la 05:00 UTC (~08:00 România vara)
+  # Ruleaza zilnic la 05:00 UTC (~08:00 RO vara / ~07:00 RO iarna)
   schedule:
     - cron: "0 5 * * *"
   workflow_dispatch: {}
@@ -22,6 +22,17 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
+      # --- OPTIONAL: prevenim dublurile in aceeasi zi daca rulezi manual de mai multe ori
+      - name: Set today (UTC)
+        id: today
+        run: echo "value=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Restore sent_log cache
+        uses: actions/cache@v4
+        with:
+          path: sent_log.csv
+          key: sentlog-${{ runner.os }}-${{ github.ref }}-${{ steps.today.outputs.value }}
+
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
@@ -32,13 +43,54 @@ jobs:
           SENDER_EMAIL:  ${{ secrets.SENDER_EMAIL }}
           APP_PASSWORD:  ${{ secrets.APP_PASSWORD }}
           DEST_EMAIL:    ${{ secrets.DEST_EMAIL }}
-          # --- Varianta fără lag (export):
+          # --- varianta fara lag (export Google Sheets)
           GSHEET_EXPORT_FILE_ID: ${{ secrets.GSHEET_EXPORT_FILE_ID }}
           GSHEET_EXPORT_GID:     ${{ secrets.GSHEET_EXPORT_GID }}
-          # (Opțional) dacă vrei să forțezi alt SMTP, poți seta și aceste variabile:
+          # --- SMTP (daca folosesti Office 365 le ai deja in secrete)
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
         run: python reminder_bot.py
+
+      # --- EMAIL IMEDIAT LA ESEC ---
+      - name: Send failure email
+        if: failure()
+        env:
+          SENDER_EMAIL:       ${{ secrets.SENDER_EMAIL }}
+          APP_PASSWORD:       ${{ secrets.APP_PASSWORD }}
+          DEST_EMAIL:         ${{ secrets.DEST_EMAIL }}
+          SMTP_HOST:          ${{ secrets.SMTP_HOST }}
+          SMTP_PORT:          ${{ secrets.SMTP_PORT }}
+          GITHUB_REPOSITORY:  ${{ github.repository }}
+          GITHUB_RUN_ID:      ${{ github.run_id }}
+          GITHUB_WORKFLOW:    ${{ github.workflow }}
+          GITHUB_REF_NAME:    ${{ github.ref_name }}
+          GITHUB_SHA:         ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import os, smtplib
+          from email.message import EmailMessage
+
+          subject = "Reminder bot: RUN FAILED"
+          body = f"""Workflow: {os.getenv('GITHUB_WORKFLOW')}
+Branch: {os.getenv('GITHUB_REF_NAME')}
+Repo: {os.getenv('GITHUB_REPOSITORY')}
+Run URL: https://github.com/{os.getenv('GITHUB_REPOSITORY')}/actions/runs/{os.getenv('GITHUB_RUN_ID')}
+Commit: {os.getenv('GITHUB_SHA')}
+"""
+
+          msg = EmailMessage()
+          msg["From"] = os.environ["SENDER_EMAIL"].strip()
+          msg["To"] = os.environ.get("DEST_EMAIL", os.environ["SENDER_EMAIL"]).strip()
+          msg["Subject"] = subject
+          msg.set_content(body)
+
+          host = os.getenv("SMTP_HOST", "smtp.office365.com").strip()
+          port = int(os.getenv("SMTP_PORT", "587"))
+          with smtplib.SMTP(host, port) as s:
+            s.starttls()
+            s.login(os.environ["SENDER_EMAIL"].strip(), os.environ["APP_PASSWORD"])
+            s.send_message(msg)
+          PY
 
       - name: Upload logs
         if: always()
@@ -49,5 +101,3 @@ jobs:
             app.log
             sent_log.csv
           if-no-files-found: ignore
-
-
