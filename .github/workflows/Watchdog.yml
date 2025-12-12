@@ -38,5 +38,5 @@ jobs:
           SMTP_PORT:    ${{ secrets.SMTP_PORT }}
 
           # TEST: pune "1" ca sa primesti mail imediat
-          WATCH_FORCE_ALERT: "0"
+          WATCH_FORCE_ALERT: "1"
         run: python watchdog.py
