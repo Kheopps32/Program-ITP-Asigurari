@@ -1,0 +1,64 @@
+name: Notify on reminder failure
+
+on:
+  # Ruleaza automat dupa ce se termina workflow-ul principal
+  workflow_run:
+    workflows: ["Run reminder bot"]   # ATENTIE: trebuie sa fie exact 'name:' din run_reminder.yml
+    types: [completed]
+
+jobs:
+  notify:
+    # Trimite alerta DOAR daca executia nu a fost cu success
+    if: ${{ contains(fromJson('["failure","cancelled","timed_out","action_required"]'), github.event.workflow_run.conclusion) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send failure email
+        env:
+          SENDER_EMAIL:  ${{ secrets.SENDER_EMAIL }}
+          APP_PASSWORD:  ${{ secrets.APP_PASSWORD }}
+          DEST_EMAIL:    ${{ secrets.DEST_EMAIL }}
+          SMTP_HOST:     ${{ secrets.SMTP_HOST }}
+          SMTP_PORT:     ${{ secrets.SMTP_PORT }}
+
+          WF_NAME:       ${{ github.event.workflow_run.name }}
+          WF_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WF_HTML_URL:   ${{ github.event.workflow_run.html_url }}
+          WF_HEAD_SHA:   ${{ github.event.workflow_run.head_sha }}
+          REPO:          ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          import os, smtplib
+          from email.message import EmailMessage
+
+          def clean(s): return " ".join((s or "").replace("\r"," ").replace("\n"," ").split())
+
+          sender = clean(os.environ["SENDER_EMAIL"])
+          to     = clean(os.environ.get("DEST_EMAIL", sender))
+          host   = clean(os.environ.get("SMTP_HOST", "smtp.office365.com"))
+          port   = int(os.environ.get("SMTP_PORT", "587"))
+
+          subject = f"[ALERTA] {os.getenv('WF_NAME','Run reminder bot')} a esuat: {os.getenv('WF_CONCLUSION','unknown')}"
+          body = f"""Salut,
+
+Workflow-ul principal a incheiat CU PROBLEME.
+
+Repo: {os.getenv('REPO')}
+Workflow: {os.getenv('WF_NAME')}
+Stare finala: {os.getenv('WF_CONCLUSION')}
+Run URL: {os.getenv('WF_HTML_URL')}
+Commit: {os.getenv('WF_HEAD_SHA')}
+
+Verifica tab-ul Actions pentru detalii.
+"""
+
+          msg = EmailMessage()
+          msg["From"] = sender
+          msg["To"] = to
+          msg["Subject"] = subject
+          msg.set_content(body)
+
+          with smtplib.SMTP(host, port) as s:
+              s.starttls()
+              s.login(sender, os.environ["APP_PASSWORD"])
+              s.send_message(msg)
+          PY
