@@ -21,7 +21,7 @@ GSHEET_EXPORT_GID     = os.getenv("GSHEET_EXPORT_GID", "").strip()
 GSHEET_CSV_URL = os.getenv("GSHEET_CSV_URL", "").strip()
 
 SENT_LOG = "sent_log.csv"          # doar pt. dubluri în aceeași rulare (nu persistent)
-TRIGGERS = {30, 15, 7, 4, 1, 0}    # am inclus si 0 (expira azi)
+TRIGGERS = {30, 15, 7, 4, 1, 0}    # include și "azi"
 DATE_FORMAT_OUTPUT = "%Y-%m-%d"
 
 SENDER_EMAIL = os.getenv("SENDER_EMAIL", "").strip()
@@ -142,7 +142,6 @@ def plural_zi_zile(n: int) -> str:
 
 # ------------------- Mesaje -------------------
 def build_future_msg(tip: str, prefix_marca: str, nr: str, d: date, days_left: int):
-    """Pentru pragurile înainte de scadență (30/15/7/4/1)."""
     subject = f"Expira {tip.lower()} la {prefix_marca}{nr} in {days_left} {plural_zi_zile(days_left)}"
     body = (
         f"Avertizare expirare: {tip}\n"
@@ -154,7 +153,6 @@ def build_future_msg(tip: str, prefix_marca: str, nr: str, d: date, days_left: i
     return subject, body
 
 def build_today_msg(tip: str, prefix_marca: str, nr: str, d: date):
-    """Pentru ziua scadenței (0 zile)."""
     subject = f"Expira AZI {tip.lower()} la {prefix_marca}{nr}"
     body = (
         f"AVERTIZARE: {tip} EXPIRA ASTAZI\n"
@@ -165,7 +163,6 @@ def build_today_msg(tip: str, prefix_marca: str, nr: str, d: date):
     return subject, body
 
 def build_overdue_msg(tip: str, prefix_marca: str, nr: str, d: date, overdue_days: int):
-    """Pentru dupa scadenta (negativ)."""
     subject = (
         f"{tip.capitalize()} la {prefix_marca}{nr} este EXPIRAT\u0102 de "
         f"{overdue_days} {plural_zi_zile(overdue_days)}"
@@ -187,8 +184,9 @@ def main():
 
     logger.info("Rows in DF: %s, columns: %s", df.shape[0], list(df.columns))
 
-    required_cols = {"nr_masina","rovinieta_expira","itp_expira","asigurare_expira"}
-    optional_cols = {"marca"}
+    # Coloane obligatorii: fără asigurare_expira
+    required_cols = {"nr_masina", "rovinieta_expira", "itp_expira"}
+    optional_cols = {"marca", "asigurare_expira"}  # asigurarea devine complet opțională
 
     # normalizeaza header-ele doar pe case (litere mici/mari)
     rename_map = {}
@@ -204,7 +202,7 @@ def main():
         raise SystemExit(f"Lipsesc coloanele obligatorii: {', '.join(sorted(missing_cols))}")
 
     already_sent = read_sent_log()
-    seen_keys_run = set()  # gard simplu anti-dubluri în aceeași rulare
+    seen_keys_run = set()
     total_to_send = 0
 
     for _, row in df.iterrows():
@@ -212,12 +210,17 @@ def main():
         marca = str(row["marca"]).strip() if "marca" in df.columns and pd.notna(row["marca"]) else ""
         prefix_marca = (marca + " ") if marca else ""
 
-        dates = {
-            "ROVINIETA": parse_date(row["rovinieta_expira"]),
-            "ITP":       parse_date(row["itp_expira"]),
-            "ASIGURARE": parse_date(row["asigurare_expira"]),
-        }
-        for tip, d in dates.items():
+        # Construim lista de verificat DINAMIC, doar pentru coloanele existente
+        date_fields = []
+        if "rovinieta_expira" in df.columns:
+            date_fields.append(("ROVINIETA", "rovinieta_expira"))
+        if "itp_expira" in df.columns:
+            date_fields.append(("ITP", "itp_expira"))
+        if "asigurare_expira" in df.columns:
+            date_fields.append(("ASIGURARE", "asigurare_expira"))
+
+        for tip, col in date_fields:
+            d = parse_date(row[col])
             if not d:
                 continue
 
