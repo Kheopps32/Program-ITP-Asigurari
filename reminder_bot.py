@@ -1,4 +1,14 @@
 
+import os
+import csv
+import smtplib
+from datetime import date, datetime, timedelta
+from email.message import EmailMessage
+import logging
+from logging.handlers import RotatingFileHandler
+
+import pandas as pd
+from dateutil import parser as dateparser
 # ------------------- Config -------------------
 CSV_FILE = "camioane.csv"
 
