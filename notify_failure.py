@@ -2,7 +2,7 @@ import os
 import smtplib
 from email.message import EmailMessage
 
-
+ 
 def tail_text(path: str, max_lines: int = 120) -> str:
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
