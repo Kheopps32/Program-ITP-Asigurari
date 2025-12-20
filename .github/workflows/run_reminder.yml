@@ -1,4 +1,4 @@
- name: Run reminder bot
+name: Run reminder bot
 
 on:
   schedule:
