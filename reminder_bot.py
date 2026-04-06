@@ -10,7 +10,7 @@ from logging.handlers import RotatingFileHandler
 import pandas as pd
 from dateutil import parser as dateparser
 # ------------------- Config -------------------
-CSV_FILE = "evidenta itp trec parc auto.csv"
+CSV_FILE = "evidenta itp parc auto.csv"
 
 # VARIANTA RAPIDĂ (fără lag): export endpoint
 #     https://docs.google.com/spreadsheets/d/<FILE_ID>/export?format=csv&gid=<GID_TAB>
