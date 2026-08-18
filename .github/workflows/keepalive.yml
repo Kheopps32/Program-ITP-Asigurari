@@ -1,0 +1,13 @@
+name: Keep Workflows Active
+
+on:
+  schedule:
+    - cron: '0 0 * * 1' # Rulează în fiecare luni
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: gautamkrishnar/keepalive-workflow@v1
